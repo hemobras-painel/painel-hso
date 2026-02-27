@@ -50,19 +50,23 @@ async function carregarExcel(input) {
 
                         // === REGRAS DE TRADUÇÃO ATUALIZADAS ===
 
-                        // 1. QUÍMICOS (HNO / HNA) - NOVO!
-                        if (sysText.includes("HNO") || sysText.includes("HNA") || sysText.includes("QUIMICO") || sysText.includes("QUÍMICO")) {
+                        // 1. ÁGUA PURIFICADA (PW / LOOP1) - NOVO!
+                        if (sysText.includes("PW") || sysText.includes("LOOP") || sysText.includes("PURIFICADA")) {
+                            finalSys = "Água Purificada";
+                        }
+                        // 2. QUÍMICOS (HNO / HNA)
+                        else if (sysText.includes("HNO") || sysText.includes("HNA") || sysText.includes("QUIMICO") || sysText.includes("QUÍMICO")) {
                             finalSys = "Químicos";
                         }
-                        // 2. ÁCIDO SULFÚRICO (HSO)
+                        // 3. ÁCIDO SULFÚRICO (HSO)
                         else if (sysText.includes("HSO") || sysText.includes("SULFURICO") || sysText.includes("ACIDO") || sysText.includes("H2SO4")) {
                             finalSys = "Ácido Sulfúrico";
                         }
-                        // 3. EFLUENTES (WW)
+                        // 4. EFLUENTES (WW)
                         else if (sysText.includes("WW") || sysText.includes("EFLUENTE") || sysText.includes("ESGOTO") || sysText.includes("TRATAMENTO")) {
                             finalSys = "Efluentes";
                         }
-                        // 4. AR COMPRIMIDO (CA/CAP)
+                        // 5. AR COMPRIMIDO (CA/CAP)
                         else if (sysText.includes("CA-") || sysText.includes("-CA") || sysText.includes(" CAP ") || sysText.includes("AR COMP") || sysText.includes("COMPRIMIDO") || sysText === "CA" || sysText === "CAP") {
                             finalSys = "Ar Comprimido";
                         }
@@ -145,7 +149,8 @@ function populateSystems() {
         if (sys === "Efluentes") emoji = "💧";
         if (sys === "Ar Comprimido") emoji = "💨";
         if (sys === "Ácido Sulfúrico") emoji = "🧪";
-        if (sys === "Químicos") emoji = "🧪"; // Emoji de químicos
+        if (sys === "Químicos") emoji = "🧪"; 
+        if (sys === "Água Purificada") emoji = "💦"; // Novo Emoji!
         
         opt.innerText = `${emoji} ${sys}`;
         select.appendChild(opt);
@@ -210,7 +215,7 @@ function updateTable(data) {
         // Cores e Ícones na Tabela
         let sysClass = "sys-ar"; // cor cinza padrão
         let sysIcon = "🔧";
-        let extraStyle = ""; // Para estilos caprichados
+        let extraStyle = ""; 
         const sysName = String(item.sistema);
         
         if (sysName === "Efluentes") { 
@@ -223,10 +228,14 @@ function updateTable(data) {
             sysClass = "sys-eflu"; 
             sysIcon = "🧪";
         } else if (sysName === "Químicos") {
-            sysClass = ""; // Remove o CSS padrão para usar o estilo roxo vibrante
+            sysClass = ""; 
             sysIcon = "🧪";
-            // O CAPRICHO: Fundo roxo, texto branco para destacar os químicos!
             extraStyle = "background-color: #8b5cf6; color: white;"; 
+        } else if (sysName === "Água Purificada") {
+            sysClass = ""; 
+            sysIcon = "💦";
+            // O CAPRICHO: Fundo Ciano/Azul Claro vibrante para a Água Purificada!
+            extraStyle = "background-color: #00bcd4; color: white;"; 
         }
 
         const tr = document.createElement('tr');
