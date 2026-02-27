@@ -50,9 +50,9 @@ async function carregarExcel(input) {
 
                         // === REGRAS DE TRADUÇÃO ATUALIZADAS ===
 
-                        // 1. ÁGUA PURIFICADA (PW / LOOP1) - NOVO!
+                        // 1. PW (LOOP1) - Agora apenas "PW"
                         if (sysText.includes("PW") || sysText.includes("LOOP") || sysText.includes("PURIFICADA")) {
-                            finalSys = "Água Purificada";
+                            finalSys = "PW";
                         }
                         // 2. QUÍMICOS (HNO / HNA)
                         else if (sysText.includes("HNO") || sysText.includes("HNA") || sysText.includes("QUIMICO") || sysText.includes("QUÍMICO")) {
@@ -150,7 +150,7 @@ function populateSystems() {
         if (sys === "Ar Comprimido") emoji = "💨";
         if (sys === "Ácido Sulfúrico") emoji = "🧪";
         if (sys === "Químicos") emoji = "🧪"; 
-        if (sys === "Água Purificada") emoji = "💦"; // Novo Emoji!
+        if (sys === "PW") emoji = "💦"; // Atualizado para "PW"
         
         opt.innerText = `${emoji} ${sys}`;
         select.appendChild(opt);
@@ -212,8 +212,7 @@ function updateTable(data) {
             ? `<span class="calib-yes">SIM</span>` 
             : `<span class="calib-no">${item.calib || "NÃO"}</span>`;
 
-        // Cores e Ícones na Tabela
-        let sysClass = "sys-ar"; // cor cinza padrão
+        let sysClass = "sys-ar"; 
         let sysIcon = "🔧";
         let extraStyle = ""; 
         const sysName = String(item.sistema);
@@ -231,11 +230,11 @@ function updateTable(data) {
             sysClass = ""; 
             sysIcon = "🧪";
             extraStyle = "background-color: #8b5cf6; color: white;"; 
-        } else if (sysName === "Água Purificada") {
+        } else if (sysName === "PW") { // Atualizado para "PW"
             sysClass = ""; 
             sysIcon = "💦";
-            // O CAPRICHO: Fundo Ciano/Azul Claro vibrante para a Água Purificada!
-            extraStyle = "background-color: #00bcd4; color: white;"; 
+            // Fundo Azul Claro (DeepSkyBlue) mais vibrante e limpo
+            extraStyle = "background-color: #00bfff; color: white;"; 
         }
 
         const tr = document.createElement('tr');
@@ -294,9 +293,6 @@ function animateValue(id, value) {
     if(el) el.innerText = value;
 }
 
-// =====================================================================
-// FUNÇÃO PARA LIMPAR TUDO
-// =====================================================================
 function limparDados() {
     if (rawData.length === 0) {
         alert("O painel já está limpo!");
