@@ -4,7 +4,7 @@
 let rawData = []; 
 
 // =====================================================================
-// FUNÇÃO PARA LER MÚLTIPLOS ARQUIVOS EXCEL (FOCADO EM SALA/SISTEMA)
+// FUNÇÃO PARA LER MÚLTIPLOS ARQUIVOS EXCEL (LÊ CÉLULAS E NOME DO ARQUIVO)
 // =====================================================================
 async function carregarExcel(input) {
     const files = input.files;
@@ -15,6 +15,9 @@ async function carregarExcel(input) {
     const lerArquivoIndividual = (file) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
+            
+            // CAPTURA O NOME DO ARQUIVO (Ex: "PW_Loop_5.xlsm") E TRANSFORMA EM MAIÚSCULO
+            const fileName = file.name.toUpperCase(); 
 
             reader.onload = function(e) {
                 try {
@@ -48,17 +51,19 @@ async function carregarExcel(input) {
                         const sysText = String(rawSys).toUpperCase();
                         let finalSys = "Geral / Outros"; 
 
-                        // === REGRAS DE TRADUÇÃO INTELIGENTES (PREPARADO PARA LOOP 2) ===
+                        // === REGRAS DE TRADUÇÃO INTELIGENTES (AVALIA CÉLULA E NOME DO ARQUIVO) ===
 
-                        // 1. ÁGUA PURIFICADA (PW_LOOP - 1 e PW_LOOP - 2)
-                        if (sysText.includes("PW") || sysText.includes("LOOP") || sysText.includes("PURIFICADA")) {
-                            if (sysText.includes("1")) {
-                                finalSys = "PW_LOOP - 1";
-                            } else if (sysText.includes("2")) {
-                                finalSys = "PW_LOOP - 2";
-                            } else {
-                                finalSys = "PW_LOOP"; // Caso venha sem número
-                            }
+                        // 1. ÁGUA PURIFICADA (PW_LOOP 1 ao 5)
+                        if (sysText.includes("PW") || sysText.includes("LOOP") || sysText.includes("PURIFICADA") || fileName.includes("PW") || fileName.includes("LOOP")) {
+                            
+                            // Procura o número do loop na célula OU no nome do arquivo
+                            if (sysText.includes("1") || fileName.includes("1")) finalSys = "PW_LOOP - 1";
+                            else if (sysText.includes("2") || fileName.includes("2")) finalSys = "PW_LOOP - 2";
+                            else if (sysText.includes("3") || fileName.includes("3")) finalSys = "PW_LOOP - 3";
+                            else if (sysText.includes("4") || fileName.includes("4")) finalSys = "PW_LOOP - 4";
+                            else if (sysText.includes("5") || fileName.includes("5")) finalSys = "PW_LOOP - 5";
+                            else finalSys = "PW_LOOP"; // Caso venha sem número
+                            
                         }
                         // 2. QUÍMICOS (HNO / HNA)
                         else if (sysText.includes("HNO") || sysText.includes("HNA") || sysText.includes("QUIMICO") || sysText.includes("QUÍMICO")) {
@@ -156,7 +161,7 @@ function populateSystems() {
         if (sys === "Ar Comprimido") emoji = "💨";
         if (sys === "Ácido Sulfúrico") emoji = "🧪";
         if (sys === "Químicos") emoji = "🧪"; 
-        if (sys.startsWith("PW_LOOP")) emoji = "💦"; // Pega o 1 e o 2 automaticamente
+        if (sys.startsWith("PW_LOOP")) emoji = "💦"; 
         
         opt.innerText = `${emoji} ${sys}`;
         select.appendChild(opt);
@@ -239,14 +244,13 @@ function updateTable(data) {
         } else if (sysName.startsWith("PW_LOOP")) {
             sysClass = ""; 
             sysIcon = "💦";
-            // Lógica para diferenciar as cores do LOOP 1 e LOOP 2
-            if (sysName.includes("1")) {
-                extraStyle = "background-color: #00bfff; color: white;"; // Azul Claro Vibrante
-            } else if (sysName.includes("2")) {
-                extraStyle = "background-color: #1e90ff; color: white;"; // Dodger Blue (Azul um pouquinho mais escuro)
-            } else {
-                extraStyle = "background-color: #00bfff; color: white;"; 
-            }
+            // DEGRADÊ DE CORES PARA OS 5 LOOPS (do mais claro ao mais escuro)
+            if (sysName.includes("1")) extraStyle = "background-color: #00bfff; color: white;"; // Deep Sky Blue
+            else if (sysName.includes("2")) extraStyle = "background-color: #1e90ff; color: white;"; // Dodger Blue
+            else if (sysName.includes("3")) extraStyle = "background-color: #0073e6; color: white;"; // Azul Médio
+            else if (sysName.includes("4")) extraStyle = "background-color: #0059b3; color: white;"; // Azul Escuro
+            else if (sysName.includes("5")) extraStyle = "background-color: #004080; color: white;"; // Azul Marinho
+            else extraStyle = "background-color: #00bfff; color: white;"; 
         }
 
         const tr = document.createElement('tr');
