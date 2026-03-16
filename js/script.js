@@ -15,9 +15,6 @@ async function carregarExcel(input) {
     const lerArquivoIndividual = (file) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            
-            // CAPTURA O NOME DO ARQUIVO PARA IDENTIFICAR OS LOOPS
-            const fileName = file.name.toUpperCase(); 
 
             reader.onload = function(e) {
                 try {
@@ -33,7 +30,7 @@ async function carregarExcel(input) {
 
                     function getValue(row, possibleNames) {
                         const rowKeys = Object.keys(row);
-                        const normalize = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                        const normalize = (str) => String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
                         for (let name of possibleNames) {
                             const target = normalize(name);
                             const foundKey = rowKeys.find(key => normalize(key) === target);
@@ -43,28 +40,14 @@ async function carregarExcel(input) {
                     }
 
                     const dadosProcessados = jsonExcel.map(linha => {
+                        // PEGA EXATAMENTE O QUE ESTÁ ESCRITO NA COLUNA
                         const rawSys = getValue(linha, ["Sala/Sistema", "Sistema", "Area", "Grupos de Instrumentos"]);
                         const tag = getValue(linha, ["TAG Hemobrás", "TAG", "Tag", "Instrumento", "Codigo"]);
                         const desc = getValue(linha, ["Descrição dos Equipamentos", "Descrição", "Descricao", "Nome"]);
                         const origem = getValue(linha, ["ORIGEM", "Origem"]);
                         
-                        const sysText = String(rawSys).toUpperCase();
-                        let finalSys = "Geral / Outros"; 
-
-                        // === REGRAS DE TRADUÇÃO INTELIGENTES ===
-                        if (sysText.includes("PW") || sysText.includes("LOOP") || sysText.includes("PURIFICADA") || fileName.includes("PW") || fileName.includes("LOOP")) {
-                            if (sysText.includes("1") || fileName.includes("1")) finalSys = "PW_LOOP - 1";
-                            else if (sysText.includes("2") || fileName.includes("2")) finalSys = "PW_LOOP - 2";
-                            else if (sysText.includes("3") || fileName.includes("3")) finalSys = "PW_LOOP - 3";
-                            else if (sysText.includes("4") || fileName.includes("4")) finalSys = "PW_LOOP - 4";
-                            else if (sysText.includes("5") || fileName.includes("5")) finalSys = "PW_LOOP - 5";
-                            else finalSys = "PW_LOOP"; 
-                        }
-                        else if (sysText.includes("HNO") || sysText.includes("HNA") || sysText.includes("QUIMICO") || sysText.includes("QUÍMICO")) finalSys = "Químicos";
-                        else if (sysText.includes("HSO") || sysText.includes("SULFURICO") || sysText.includes("ACIDO") || sysText.includes("H2SO4")) finalSys = "Ácido Sulfúrico";
-                        else if (sysText.includes("WW") || sysText.includes("EFLUENTE") || sysText.includes("ESGOTO") || sysText.includes("TRATAMENTO")) finalSys = "Efluentes";
-                        else if (sysText.includes("CA-") || sysText.includes("-CA") || sysText.includes(" CAP ") || sysText.includes("AR COMP") || sysText.includes("COMPRIMIDO") || sysText === "CA" || sysText === "CAP") finalSys = "Ar Comprimido";
-                        else if (rawSys.length > 2) finalSys = rawSys; 
+                        // SE ESTIVER VAZIO, COLOCA "Geral / Outros", SENÃO MANTÉM O TEXTO ORIGINAL
+                        let finalSys = rawSys ? String(rawSys).trim() : "Geral / Outros"; 
 
                         return {
                             sistema: finalSys, 
@@ -74,7 +57,7 @@ async function carregarExcel(input) {
                             calib: getValue(linha, ["Calibração (SIM ou NÃO)", "Calibracao", "Criticidade"]),
                             status_calib: getValue(linha, ["Status de qualificação", "Status", "Situação"]),
                             defeito: getValue(linha, ["Defeito", "Com defeito", "Falha"]), 
-                            observacao: getValue(linha, ["Observação", "Observacao", "Obs", "Motivo"]), // NOVA COLUNA DE OBSERVAÇÃO
+                            observacao: getValue(linha, ["Observação", "Observacao", "Obs", "Motivo"]),
                             origem: origem
                         };
                     });
@@ -109,6 +92,12 @@ async function carregarExcel(input) {
 // =====================================================================
 
 function init() {
+    // ATUALIZA O SUBTÍTULO AUTOMATICAMENTE COM BWT
+    const subtitulo = document.querySelector('header p') || document.querySelector('p');
+    if (subtitulo) {
+        subtitulo.innerHTML = "Monitoramento Integrado: Efluentes (WW), Ar Comprimido (CA/CAP), Químicos (HNO/HNA), BWT e PW (LOOP 1 ao 5)";
+    }
+
     if (rawData.length === 0) {
         document.getElementById('tableBody').innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#0056b3;">📂 <b>Aguardando arquivos...</b></td></tr>';
         return;
@@ -139,10 +128,15 @@ function populateSystems() {
         const opt = document.createElement('option');
         opt.value = sys;
         let emoji = "🔧";
-        if (sys === "Efluentes") emoji = "💧";
-        if (sys === "Ar Comprimido") emoji = "💨";
-        if (sys === "Ácido Sulfúrico" || sys === "Químicos") emoji = "🧪"; 
-        if (sys.startsWith("PW_LOOP")) emoji = "💦"; 
+        const sUp = sys.toUpperCase();
+        
+        // INTELIGÊNCIA APENAS PARA COLOCAR O EMOJI CORRETO NO FILTRO
+        if (sUp.includes("EFLUENTE") || sUp === "WW") emoji = "💧";
+        else if (sUp.includes("AR COMP") || sUp === "CA" || sUp === "CAP") emoji = "💨";
+        else if (sUp.includes("QUIMICO") || sUp.includes("ÁCIDO") || sUp.includes("HNO") || sUp.includes("HNA")) emoji = "🧪"; 
+        else if (sUp.includes("BWT")) emoji = "💧";
+        else if (sUp.includes("PW") || sUp.includes("LOOP")) emoji = "💦"; 
+        
         opt.innerText = `${emoji} ${sys}`;
         select.appendChild(opt);
     });
@@ -196,7 +190,6 @@ function updateTable(data) {
     tbody.innerHTML = "";
 
     if(data.length === 0) {
-        // Atualizado colspan para 9 por conta da nova coluna
         tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#999;">Nenhum dado encontrado.</td></tr>`;
         document.getElementById('tableFooter').innerText = "";
         return;
@@ -219,28 +212,29 @@ function updateTable(data) {
             ? '<span style="background-color:#f8d7da; color:#721c24; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.85em; border: 1px solid #f5c6cb;">🔴 DEFEITO</span>' 
             : '<span style="color:#28a745; font-weight:bold; font-size:0.9em;">🟢 OK</span>';
 
-        // === NOVA LÓGICA PARA A OBSERVAÇÃO ===
-        // Se tiver texto na observação, ele mostra em itálico e com cor cinza escuro. Se não, mostra um "-" clarinho.
         const obsHtml = item.observacao 
             ? `<span style="font-size:0.85em; color:#444; font-style:italic;">${item.observacao}</span>` 
             : `<span style="color:#ccc;">-</span>`;
 
         let sysClass = "sys-ar"; 
         let sysIcon = "🔧";
-        let extraStyle = ""; 
-        const sysName = String(item.sistema);
+        let extraStyle = "background-color: #6c757d; color: white;"; // Cor padrão Cinza
         
-        if (sysName === "Efluentes") { sysClass = "sys-eflu"; sysIcon = "💧"; } 
-        else if (sysName === "Ar Comprimido") { sysClass = "sys-ar"; sysIcon = "💨"; } 
-        else if (sysName === "Ácido Sulfúrico") { sysClass = "sys-eflu"; sysIcon = "🧪"; } 
-        else if (sysName === "Químicos") { sysClass = ""; sysIcon = "🧪"; extraStyle = "background-color: #8b5cf6; color: white;"; } 
-        else if (sysName.startsWith("PW_LOOP")) {
+        const sysName = String(item.sistema);
+        const sUp = sysName.toUpperCase();
+        
+        // INTELIGÊNCIA APENAS PARA CORES E ÍCONES NA TABELA (Mantém o nome real da planilha)
+        if (sUp.includes("EFLUENTE") || sUp === "WW") { sysClass = "sys-eflu"; sysIcon = "💧"; extraStyle = "background-color: #17a2b8; color: white;"; } 
+        else if (sUp.includes("AR COMP") || sUp === "CA" || sUp === "CAP") { sysClass = "sys-ar"; sysIcon = "💨"; extraStyle = "background-color: #6c757d; color: white;"; } 
+        else if (sUp.includes("SULFURICO") || sUp.includes("QUIMICO") || sUp.includes("HNO") || sUp.includes("HNA")) { sysClass = ""; sysIcon = "🧪"; extraStyle = "background-color: #8b5cf6; color: white;"; } 
+        else if (sUp.includes("BWT")) { sysClass = ""; sysIcon = "💧"; extraStyle = "background-color: #0ea5e9; color: white;"; } 
+        else if (sUp.includes("PW") || sUp.includes("LOOP")) {
             sysClass = ""; sysIcon = "💦";
-            if (sysName.includes("1")) extraStyle = "background-color: #00bfff; color: white;"; 
-            else if (sysName.includes("2")) extraStyle = "background-color: #1e90ff; color: white;"; 
-            else if (sysName.includes("3")) extraStyle = "background-color: #0073e6; color: white;"; 
-            else if (sysName.includes("4")) extraStyle = "background-color: #0059b3; color: white;"; 
-            else if (sysName.includes("5")) extraStyle = "background-color: #004080; color: white;"; 
+            if (sUp.includes("1")) extraStyle = "background-color: #00bfff; color: white;"; 
+            else if (sUp.includes("2")) extraStyle = "background-color: #1e90ff; color: white;"; 
+            else if (sUp.includes("3")) extraStyle = "background-color: #0073e6; color: white;"; 
+            else if (sUp.includes("4")) extraStyle = "background-color: #0059b3; color: white;"; 
+            else if (sUp.includes("5")) extraStyle = "background-color: #004080; color: white;"; 
             else extraStyle = "background-color: #00bfff; color: white;"; 
         }
 
