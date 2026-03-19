@@ -3,9 +3,6 @@
 // =====================================================================
 let rawData = []; 
 
-// =====================================================================
-// FUNÇÃO PARA LER MÚLTIPLOS ARQUIVOS EXCEL (LÊ CÉLULAS E NOME DO ARQUIVO)
-// =====================================================================
 async function carregarExcel(input) {
     const files = input.files;
     if (!files || files.length === 0) return;
@@ -30,7 +27,6 @@ async function carregarExcel(input) {
 
                     function getValue(row, possibleNames) {
                         const rowKeys = Object.keys(row);
-                        // RADAR BLINDADO: Remove acentos e TODOS os espaços/quebras de linha para garantir que vai achar a coluna
                         const normalize = (str) => String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").toUpperCase();
                         
                         for (let name of possibleNames) {
@@ -42,14 +38,11 @@ async function carregarExcel(input) {
                     }
 
                     const dadosProcessados = jsonExcel.map(linha => {
-                        // ROTA DE FUGA REMOVIDA: Agora ele busca estritamente as variações de Sistema/Sala
                         const rawSys = getValue(linha, ["Sala/Sistema", "Sala", "Sistema", "Area"]);
-                        
                         const tag = getValue(linha, ["TAG Hemobrás", "TAG", "Tag", "Instrumento", "Codigo"]);
                         const desc = getValue(linha, ["Descrição dos Equipamentos", "Descrição", "Descricao", "Nome"]);
                         const origem = getValue(linha, ["ORIGEM", "Origem"]);
                         
-                        // SE ESTIVER VAZIO, COLOCA "Geral / Outros", SENÃO MANTÉM O TEXTO ORIGINAL
                         let finalSys = rawSys ? String(rawSys).trim() : "Geral / Outros"; 
 
                         return {
@@ -58,7 +51,9 @@ async function carregarExcel(input) {
                             desc: desc,
                             local: getValue(linha, ["Local", "Area"]), 
                             calib: getValue(linha, ["Calibração (SIM ou NÃO)", "Calibracao", "Criticidade"]),
-                            status_calib: getValue(linha, ["Status de qualificação", "Status", "Situação"]),
+                            status_calib: getValue(linha, ["Status de qualificação", "Status", "Situação"]), // COLUNA DE STATUS
+                            certSM: getValue(linha, ["Certificado aprovado SM", "Certificado SM", "SM"]),
+                            aprSVC: getValue(linha, ["Aprovado SVC", "Aprovado", "SVC"]),
                             defeito: getValue(linha, ["Defeito", "Com defeito", "Falha"]), 
                             observacao: getValue(linha, ["Observação", "Observacao", "Obs", "Motivo"]),
                             origem: origem
@@ -89,10 +84,6 @@ async function carregarExcel(input) {
         console.error(err);
     }
 }
-
-// =====================================================================
-// INICIALIZAÇÃO E FILTROS
-// =====================================================================
 
 function init() {
     const subtitulo = document.querySelector('header p') || document.querySelector('p');
@@ -159,7 +150,6 @@ function applyFilters() {
         const iDesc = String(item.desc || "").toLowerCase();
         const iLoc = String(item.local || "").trim();
         const iCalib = String(item.calib || "").toUpperCase();
-        const iStatus = String(item.status_calib || "").toUpperCase();
         const iDefeito = String(item.defeito || "").toUpperCase(); 
 
         const matchSys = sys === "" || iSys === sys;
@@ -169,8 +159,10 @@ function applyFilters() {
         let matchCalib = true;
         if (calibType === "SIM") matchCalib = iCalib.startsWith("SIM");
         else if (calibType === "NÃO") matchCalib = !iCalib.startsWith("SIM");
-        else if (calibType === "REALIZADO") matchCalib = iCalib.startsWith("SIM") && iStatus.includes("OK");
-        else if (calibType === "PENDENTE") matchCalib = iCalib.startsWith("SIM") && !iStatus.includes("OK");
+        else if (calibType === "AGUARDANDO_SM") matchCalib = item.workflowCategory === "AGUARDANDO_SM";
+        else if (calibType === "CERTIFICADO_APROVADO") matchCalib = item.workflowCategory === "CERTIFICADO_APROVADO";
+        else if (calibType === "CONCLUIDO") matchCalib = item.workflowCategory === "CONCLUIDO";
+        else if (calibType === "REPROVADO") matchCalib = item.workflowCategory === "REPROVADO";
 
         let matchDefeito = true;
         if (defType === "SIM") matchDefeito = iDefeito.includes("SIM");
@@ -182,10 +174,6 @@ function applyFilters() {
     updateTable(filtered);
     updateKPIs(filtered);
 }
-
-// =====================================================================
-// RENDERIZAÇÃO DA TABELA E GRÁFICOS
-// =====================================================================
 
 function updateTable(data) {
     const tbody = document.getElementById('tableBody');
@@ -200,14 +188,44 @@ function updateTable(data) {
     data.forEach(item => {
         const tagClean = item.tag;
         const isPending = (tagClean === "");
-        
-        const statusHtml = isPending 
-            ? '<span class="status-pill st-pend">PENDENTE</span>' 
-            : '<span class="status-pill st-ok">OK</span>';
-        
         const iCalib = String(item.calib).toUpperCase();
         const isCalib = iCalib.startsWith("SIM");
+        
         const calibIcon = isCalib ? `<span class="calib-yes">SIM</span>` : `<span class="calib-no">${item.calib || "NÃO"}</span>`;
+
+      // ==========================================
+        // LÓGICA DO NOVO WORKFLOW DE CALIBRAÇÃO
+        // ==========================================
+        let smText = String(item.certSM).toUpperCase();
+        let svcText = String(item.aprSVC).toUpperCase();
+        // A variável statusQualif não vai mais forçar o "Concluído"
+        
+        let workflowStatusHtml = "";
+        let workflowCategory = "";
+
+        if (!isCalib) {
+            workflowStatusHtml = '<span style="color:#ccc;">-</span>';
+            workflowCategory = "NAO_CRITICO";
+        } else {
+            // REGRA CORRIGIDA: Só é Concluído se a coluna APROVADO SVC tiver SIM, OK ou APROVADO
+            if (svcText.includes("SIM") || svcText.includes("OK") || svcText.includes("APROVADO")) {
+                workflowStatusHtml = '<span style="background-color:#d4edda; color:#155724; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.85em;">✅ Concluído</span>';
+                workflowCategory = "CONCLUIDO";
+            } else if (svcText.includes("NÃO") || smText.includes("NÃO")) {
+                workflowStatusHtml = '<span style="background-color:#f8d7da; color:#721c24; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.85em;">❌ Reprovado</span>';
+                workflowCategory = "REPROVADO";
+            } 
+            // Se o SVC não está aprovado, mas o SM tem SIM, OK ou APROVADO, mostra a etiqueta Certificado Aprovado
+            else if (smText.includes("SIM") || smText.includes("APROVADO") || smText.includes("OK")) {
+                workflowStatusHtml = '<span style="background-color:#cce5ff; color:#004085; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.85em;">Certificado Aprovado</span>';
+                workflowCategory = "CERTIFICADO_APROVADO";
+            } else {
+                workflowStatusHtml = '<span style="background-color:#e2e3e5; color:#383d41; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.85em;">📥 Aguardando Cert.</span>';
+                workflowCategory = "AGUARDANDO_SM";
+            }
+        }
+        item.workflowCategory = workflowCategory; 
+        // ==========================================
 
         const isDefeito = String(item.defeito).toUpperCase().includes("SIM");
         const defeitoHtml = isDefeito 
@@ -243,11 +261,11 @@ function updateTable(data) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><span class="sys-badge ${sysClass}" style="${extraStyle}">${sysIcon} ${sysName}</span></td>
-            <td class="tag-text">${isPending ? '<span style="color:var(--danger)">-- S/ TAG --</span>' : tagClean}</td>
+            <td class="tag-text">${isPending ? '<span style="color:red">-- S/ TAG --</span>' : tagClean}</td>
             <td>${item.desc}</td>
             <td>${item.local}</td>
             <td>${calibIcon}</td>
-            <td>${statusHtml}</td>
+            <td style="text-align: center;">${workflowStatusHtml}</td>
             <td>${defeitoHtml}</td>
             <td>${obsHtml}</td> <td style="font-size:0.8em; color:#999;">${item.origem}</td>
         `;
@@ -270,7 +288,8 @@ function updateKPIs(data) {
         
         if(item.calib && String(item.calib).toUpperCase().startsWith("SIM")) {
             totalCritical++;
-            if (item.status_calib && String(item.status_calib).toUpperCase().includes("OK")) {
+            // LÓGICA DO GRÁFICO: Agora a categoria "CONCLUIDO" já absorve tanto o "SVC" quanto o "Status = OK" da planilha!
+            if (item.workflowCategory === "CONCLUIDO" || item.workflowCategory === "CERTIFICADO_APROVADO") {
                 totalDone++;
             }
         }
@@ -310,7 +329,6 @@ function limparDados() {
         alert("O painel já está limpo!");
         return;
     }
-
     if (confirm("Tem certeza que deseja limpar todos os dados da tela?")) {
         rawData = [];
         document.getElementById('excelInput').value = "";

@@ -85,13 +85,15 @@
             <input type="text" id="searchInput" class="form-input" placeholder="Digite TAG, Descrição..." onkeyup="applyFilters()">
         </div>
         
-        <div style="flex: 1; min-width: 150px;">
-            <label for="filterCalib" style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">🎯 Calibração</label>
+       <div style="flex: 1; min-width: 150px;">
+            <label for="filterCalib" style="display: block; font-weight: bold; margin-bottom: 5px; color: #555;">🎯 Fluxo Calibração</label>
             <select id="filterCalib" onchange="applyFilters()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: white;">
                 <option value="">📊 Mostrar Tudo</option>
                 <option value="SIM">⚠️ Críticos (Todos)</option>
-                <option value="REALIZADO">✅ Críticos - Concluídos</option>
-                <option value="PENDENTE">⏳ Críticos - Pendentes</option>
+                <option value="AGUARDANDO_SM">📥 1. Aguardando Certificado</option>
+                <option value="CERTIFICADO_APROVADO">📄 2. Certificado Aprovado</option>
+                <option value="CONCLUIDO">✅ 3. Concluídos (SVC)</option>
+                <option value="REPROVADO">❌ Reprovados</option>
                 <option value="NÃO">⚪ Não Críticos</option>
             </select>
         </div>
@@ -115,7 +117,9 @@
                     <th style="padding: 12px 8px; width: 20%;">Descrição do Equipamento</th>
                     <th style="padding: 12px 8px; width: 10%;">Local</th>
                     <th style="padding: 12px 8px; width: 10%;">Calibração?</th>
-                    <th style="padding: 12px 8px; width: 8%;">Status</th>
+                    
+                    <th style="padding: 12px 8px; width: 12%; text-align:center;">Progresso Calibração</th>
+                    
                     <th style="padding: 12px 8px; width: 10%;">Condição</th> 
                     <th style="padding: 12px 8px; width: 12%;">Motivo</th> 
                     <th style="padding: 12px 8px; width: 8%; font-size:0.8em; color:#999;">Origem</th>
